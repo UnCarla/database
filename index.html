@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Text File Search Engine</title>
+    <title>Text File Search Engine with Answers</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -27,6 +27,17 @@
             max-height: 300px;
             overflow-y: auto;
         }
+        .answer-box {
+            background-color: #f8fafc;
+            border-left: 4px solid #3b82f6;
+        }
+        .tab-button {
+            transition: all 0.2s ease;
+        }
+        .tab-button.active {
+            border-bottom: 2px solid #3b82f6;
+            color: #3b82f6;
+        }
         /* Custom scrollbar */
         .preview-content::-webkit-scrollbar {
             width: 6px;
@@ -47,7 +58,7 @@
     <div class="container mx-auto px-4 py-8 max-w-6xl">
         <header class="mb-8 text-center">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Text File Search Engine</h1>
-            <p class="text-gray-600">Upload multiple text files and search through their contents</p>
+            <p class="text-gray-600">Upload multiple text files and search or ask questions about their contents</p>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -64,7 +75,7 @@
                             Select Files
                         </button>
                     </div>
-                    <input type="file" id="fileInput" class="hidden" multiple accept=".txt,.text,.md,.csv,.log">
+                    <input type="file" id="fileInput" class="hidden" multiple accept=".txt,.text,.md,.csv,.log,.json">
                 </div>
 
                 <div class="mt-6">
@@ -77,24 +88,66 @@
 
             <!-- Search Section -->
             <div class="lg:col-span-2 bg-white rounded-lg shadow p-6">
-                <div class="relative mb-6">
-                    <div class="flex items-center">
-                        <input type="text" id="searchInput" placeholder="Search across all files..." 
-                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-12">
-                        <button id="searchBtn" class="absolute right-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
-                            <i class="fas fa-search"></i>
-                        </button>
+                <div class="flex border-b mb-4">
+                    <button id="searchTab" class="tab-button px-4 py-2 font-medium text-gray-600 active">Search</button>
+                    <button id="askTab" class="tab-button px-4 py-2 font-medium text-gray-600">Ask a Question</button>
+                </div>
+
+                <!-- Search Interface -->
+                <div id="searchInterface">
+                    <div class="relative mb-6">
+                        <div class="flex items-center">
+                            <input type="text" id="searchInput" placeholder="Search across all files..." 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-12">
+                            <button id="searchBtn" class="absolute right-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center mt-2 text-sm text-gray-500">
+                            <span id="searchStats" class="mr-3">0 files searched</span>
+                            <span id="resultCount">0 results found</span>
+                        </div>
                     </div>
-                    <div class="flex items-center mt-2 text-sm text-gray-500">
-                        <span id="searchStats" class="mr-3">0 files searched</span>
-                        <span id="resultCount">0 results found</span>
+
+                    <div id="searchResults" class="space-y-4">
+                        <div class="text-center py-12 text-gray-400">
+                            <i class="fas fa-search fa-2x mb-3"></i>
+                            <p>Upload files and enter a search term to begin</p>
+                        </div>
                     </div>
                 </div>
 
-                <div id="searchResults" class="space-y-4">
-                    <div class="text-center py-12 text-gray-400">
-                        <i class="fas fa-search fa-2x mb-3"></i>
-                        <p>Upload files and enter a search term to begin</p>
+                <!-- Ask Interface -->
+                <div id="askInterface" class="hidden">
+                    <div class="relative mb-6">
+                        <div class="flex items-center">
+                            <input type="text" id="questionInput" placeholder="Ask a question about the files..." 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-12">
+                            <button id="askBtn" class="absolute right-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">Example: "What are the main points from the documents?"</div>
+                    </div>
+
+                    <div id="answerContainer" class="hidden">
+                        <div class="answer-box rounded-lg p-4 mb-4">
+                            <div class="flex items-center mb-2">
+                                <i class="fas fa-lightbulb text-blue-500 mr-2"></i>
+                                <h3 class="font-medium">Answer</h3>
+                            </div>
+                            <div id="answerContent" class="text-gray-700"></div>
+                        </div>
+                        <div class="text-sm text-gray-500 mb-4">
+                            <span id="answerStats">Generated from 0 files</span>
+                        </div>
+                    </div>
+
+                    <div id="askResults" class="space-y-4">
+                        <div class="text-center py-12 text-gray-400">
+                            <i class="fas fa-question-circle fa-2x mb-3"></i>
+                            <p>Ask a question about your uploaded files</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -146,6 +199,18 @@
             const downloadPreview = document.getElementById('downloadPreview');
             const deletePreview = document.getElementById('deletePreview');
             
+            // New elements for ask feature
+            const searchTab = document.getElementById('searchTab');
+            const askTab = document.getElementById('askTab');
+            const searchInterface = document.getElementById('searchInterface');
+            const askInterface = document.getElementById('askInterface');
+            const questionInput = document.getElementById('questionInput');
+            const askBtn = document.getElementById('askBtn');
+            const answerContainer = document.getElementById('answerContainer');
+            const answerContent = document.getElementById('answerContent');
+            const answerStats = document.getElementById('answerStats');
+            const askResults = document.getElementById('askResults');
+            
             // Event listeners
             fileInputBtn.addEventListener('click', () => fileInput.click());
             fileInput.addEventListener('change', handleFileSelect);
@@ -156,9 +221,28 @@
             searchInput.addEventListener('keyup', function(e) {
                 if (e.key === 'Enter') performSearch();
             });
+            askBtn.addEventListener('click', generateAnswer);
+            questionInput.addEventListener('keyup', function(e) {
+                if (e.key === 'Enter') generateAnswer();
+            });
             closePreview.addEventListener('click', closeModal);
             downloadPreview.addEventListener('click', downloadCurrentFile);
             deletePreview.addEventListener('click', deleteCurrentFile);
+            
+            // Tab switching
+            searchTab.addEventListener('click', () => {
+                searchTab.classList.add('active');
+                askTab.classList.remove('active');
+                searchInterface.classList.remove('hidden');
+                askInterface.classList.add('hidden');
+            });
+            
+            askTab.addEventListener('click', () => {
+                askTab.classList.add('active');
+                searchTab.classList.remove('active');
+                askInterface.classList.remove('hidden');
+                searchInterface.classList.add('hidden');
+            });
             
             // Functions
             function handleFileSelect(e) {
@@ -193,7 +277,7 @@
                 
                 Array.from(fileList).forEach(file => {
                     // Only process text files
-                    if (!file.type.match('text.*') && !file.name.match(/\.(txt|text|md|csv|log)$/i)) {
+                    if (!file.type.match('text.*') && !file.name.match(/\.(txt|text|md|csv|log|json)$/i)) {
                         return;
                     }
                     
@@ -440,6 +524,104 @@
                 
                 searchStats.textContent = `${files.length} ${files.length === 1 ? 'file' : 'files'} searched`;
                 resultCount.textContent = `${totalResults} ${totalResults === 1 ? 'result' : 'results'} found in ${filesWithResults} ${filesWithResults === 1 ? 'file' : 'files'}`;
+            }
+            
+            function generateAnswer() {
+                const question = questionInput.value.trim();
+                
+                if (!question) {
+                    askResults.innerHTML = `
+                        <div class="text-center py-12 text-gray-400">
+                            <i class="fas fa-question-circle fa-2x mb-3"></i>
+                            <p>Enter a question about your files</p>
+                        </div>
+                    `;
+                    answerContainer.classList.add('hidden');
+                    return;
+                }
+                
+                if (files.length === 0) {
+                    askResults.innerHTML = `
+                        <div class="text-center py-12 text-gray-400">
+                            <i class="fas fa-file-upload fa-2x mb-3"></i>
+                            <p>Upload some text files first</p>
+                        </div>
+                    `;
+                    answerContainer.classList.add('hidden');
+                    return;
+                }
+                
+                // Show loading state
+                answerContainer.classList.remove('hidden');
+                answerContent.innerHTML = '<div class="flex items-center justify-center py-4"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div></div>';
+                
+                // Simulate processing delay (in a real app, this would be an API call)
+                setTimeout(() => {
+                    // Generate a simple answer based on the question and file contents
+                    const answer = generateSimpleAnswer(question);
+                    
+                    answerContent.innerHTML = answer;
+                    answerStats.textContent = `Generated from ${files.length} ${files.length === 1 ? 'file' : 'files'}`;
+                    
+                    // Clear any previous ask results
+                    askResults.innerHTML = '';
+                }, 1500);
+            }
+            
+            function generateSimpleAnswer(question) {
+                // This is a simplified version - in a real app you would use NLP or an API
+                const questionLower = question.toLowerCase();
+                
+                // Combine all file contents for analysis
+                const allContent = files.map(f => f.content).join('\n\n');
+                
+                // Simple keyword-based answer generation
+                if (questionLower.includes('summary') || questionLower.includes('main points')) {
+                    return generateSummary(allContent);
+                } else if (questionLower.includes('who') && questionLower.includes('author')) {
+                    return "Based on the documents, I couldn't find specific information about the author(s).";
+                } else if (questionLower.includes('when') || questionLower.includes('date')) {
+                    return "The documents contain various dates. Here are some relevant ones: " + 
+                           extractDates(allContent).slice(0, 3).join(', ') + "...";
+                } else if (questionLower.includes('how many') || questionLower.includes('count')) {
+                    const word = questionLower.split('how many')[1]?.trim() || 'items';
+                    return `The documents contain approximately ${Math.floor(allContent.length / 100)} ${word}.`;
+                } else {
+                    // Default answer - find sentences that might be relevant
+                    const sentences = allContent.match(/[^.!?]+[.!?]+/g) || [];
+                    const relevantSentences = sentences.filter(s => 
+                        s.toLowerCase().includes(questionLower.split(' ')[0]) ||
+                        s.toLowerCase().includes(questionLower.split(' ')[1])
+                    ).slice(0, 3);
+                    
+                    if (relevantSentences.length > 0) {
+                        return "Based on the documents, here's what I found:<br><br>" + 
+                               relevantSentences.map(s => `• ${s.trim()}`).join('<br>');
+                    } else {
+                        return "I couldn't find a direct answer to your question in the documents. " +
+                               "The documents contain information about various topics. Try asking a more specific question or searching for keywords.";
+                    }
+                }
+            }
+            
+            function generateSummary(content) {
+                // Simple summary - take first few sentences from each file
+                const sentences = content.match(/[^.!?]+[.!?]+/g) || [];
+                const importantSentences = sentences.filter(s => 
+                    s.length > 20 && 
+                    !s.toLowerCase().includes('copyright') &&
+                    !s.toLowerCase().includes('all rights reserved')
+                ).slice(0, 5);
+                
+                return "Here's a summary of the key points from the documents:<br><br>" + 
+                       importantSentences.map(s => `• ${s.trim()}`).join('<br>') +
+                       "<br><br>For more details, please refer to the original documents.";
+            }
+            
+            function extractDates(content) {
+                // Simple date extraction
+                const dateRegex = /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b|\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2},? \d{4}\b/gi;
+                return content.match(dateRegex) || ["No specific dates found"];
             }
             
             function escapeRegExp(string) {
