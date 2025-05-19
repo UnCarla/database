@@ -1,89 +1,451 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>AI File Assistant</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #1f1f2e; color: #fff; padding: 20px; }
-    .container { max-width: 700px; margin: auto; background: #2f2f45; padding: 20px; border-radius: 10px; }
-    h1 { text-align: center; color: #9b59b6; }
-    input, textarea, button { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; }
-    input, textarea { background: #444; color: #fff; }
-    button { background: #9b59b6; color: white; cursor: pointer; }
-    .response { background: #333; padding: 15px; border-radius: 5px; margin-top: 20px; white-space: pre-wrap; }
-    .file-list { margin-top: 10px; font-size: 14px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text File Search Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .file-item:hover .file-actions {
+            opacity: 1;
+        }
+        .search-highlight {
+            background-color: #fef08a;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+        .dropzone {
+            border: 2px dashed #cbd5e1;
+            transition: all 0.3s ease;
+        }
+        .dropzone.active {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .preview-content {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        /* Custom scrollbar */
+        .preview-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        .preview-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .preview-content::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .preview-content::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
 </head>
-<body>
-  <div class="container">
-    <h1>📚 AI Knowledge Assistant</h1>
-    
-    <input type="file" id="fileInput" multiple>
-    <div class="file-list" id="fileList">No files uploaded yet.</div>
-    
-    <textarea id="questionInput" placeholder="Ask your question..."></textarea>
-    <button onclick="askAI()">Ask AI</button>
-    
-    <div class="response" id="aiResponse">AI response will appear here.</div>
-  </div>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Text File Search Engine</h1>
+            <p class="text-gray-600">Upload multiple text files and search through their contents</p>
+        </header>
 
-  <script>
-    let knowledgeBase = [];
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Upload Section -->
+            <div class="lg:col-span-1 bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">Upload Files</h2>
+                
+                <div id="dropzone" class="dropzone rounded-lg p-8 mb-4 text-center cursor-pointer">
+                    <div class="flex flex-col items-center justify-center">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-blue-500 mb-3"></i>
+                        <p class="text-gray-600 mb-2">Drag & drop text files here</p>
+                        <p class="text-sm text-gray-500">or</p>
+                        <button id="fileInputBtn" class="mt-3 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+                            Select Files
+                        </button>
+                    </div>
+                    <input type="file" id="fileInput" class="hidden" multiple accept=".txt,.text,.md,.csv,.log">
+                </div>
 
-    document.getElementById('fileInput').addEventListener('change', function (event) {
-      const files = event.target.files;
-      const fileList = document.getElementById('fileList');
+                <div class="mt-6">
+                    <h3 class="font-medium text-gray-700 mb-2">Uploaded Files</h3>
+                    <div id="fileList" class="space-y-2 max-h-64 overflow-y-auto">
+                        <p id="noFilesMessage" class="text-gray-500 text-sm italic">No files uploaded yet</p>
+                    </div>
+                </div>
+            </div>
 
-      for (let file of files) {
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          knowledgeBase.push(e.target.result);
-          updateFileList();
-        };
-        reader.readAsText(file);
-      }
-    });
+            <!-- Search Section -->
+            <div class="lg:col-span-2 bg-white rounded-lg shadow p-6">
+                <div class="relative mb-6">
+                    <div class="flex items-center">
+                        <input type="text" id="searchInput" placeholder="Search across all files..." 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-12">
+                        <button id="searchBtn" class="absolute right-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center mt-2 text-sm text-gray-500">
+                        <span id="searchStats" class="mr-3">0 files searched</span>
+                        <span id="resultCount">0 results found</span>
+                    </div>
+                </div>
 
-    function updateFileList() {
-      const fileList = document.getElementById('fileList');
-      fileList.innerHTML = `Total files loaded: ${knowledgeBase.length}`;
-    }
+                <div id="searchResults" class="space-y-4">
+                    <div class="text-center py-12 text-gray-400">
+                        <i class="fas fa-search fa-2x mb-3"></i>
+                        <p>Upload files and enter a search term to begin</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    async function askAI() {
-      const question = document.getElementById('questionInput').value;
-      const context = knowledgeBase.join('\n').slice(0, 12000); // для gpt-3.5 можно больше
+    <!-- File Preview Modal -->
+    <div id="previewModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center border-b p-4">
+                <h3 id="previewTitle" class="text-lg font-semibold"></h3>
+                <button id="closePreview" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="previewContent" class="preview-content p-4 whitespace-pre-wrap overflow-auto flex-grow"></div>
+            <div class="border-t p-3 flex justify-end">
+                <button id="downloadPreview" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2">
+                    <i class="fas fa-download mr-2"></i>Download
+                </button>
+                <button id="deletePreview" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+                    <i class="fas fa-trash mr-2"></i>Delete
+                </button>
+            </div>
+        </div>
+    </div>
 
-      const responseDiv = document.getElementById('aiResponse');
-      responseDiv.innerHTML = 'Thinking... 🤔';
-
-      const apiKey = "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"; // вставь свой настоящий OpenAI API-ключ сюда
-
-      try {
-        const res = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: "gpt-3.5-turbo",
-            messages: [
-              { role: "system", content: "You are an AI assistant answering based on uploaded user documents." },
-              { role: "user", content: `Context:\n${context}\n\nQuestion: ${question}` }
-            ],
-            max_tokens: 500,
-            temperature: 0.7
-          })
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // File storage
+            let files = [];
+            let currentPreviewFile = null;
+            
+            // DOM elements
+            const fileInput = document.getElementById('fileInput');
+            const fileInputBtn = document.getElementById('fileInputBtn');
+            const dropzone = document.getElementById('dropzone');
+            const fileList = document.getElementById('fileList');
+            const noFilesMessage = document.getElementById('noFilesMessage');
+            const searchInput = document.getElementById('searchInput');
+            const searchBtn = document.getElementById('searchBtn');
+            const searchResults = document.getElementById('searchResults');
+            const searchStats = document.getElementById('searchStats');
+            const resultCount = document.getElementById('resultCount');
+            const previewModal = document.getElementById('previewModal');
+            const previewTitle = document.getElementById('previewTitle');
+            const previewContent = document.getElementById('previewContent');
+            const closePreview = document.getElementById('closePreview');
+            const downloadPreview = document.getElementById('downloadPreview');
+            const deletePreview = document.getElementById('deletePreview');
+            
+            // Event listeners
+            fileInputBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', handleFileSelect);
+            dropzone.addEventListener('dragover', handleDragOver);
+            dropzone.addEventListener('dragleave', handleDragLeave);
+            dropzone.addEventListener('drop', handleDrop);
+            searchBtn.addEventListener('click', performSearch);
+            searchInput.addEventListener('keyup', function(e) {
+                if (e.key === 'Enter') performSearch();
+            });
+            closePreview.addEventListener('click', closeModal);
+            downloadPreview.addEventListener('click', downloadCurrentFile);
+            deletePreview.addEventListener('click', deleteCurrentFile);
+            
+            // Functions
+            function handleFileSelect(e) {
+                const selectedFiles = e.target.files;
+                processFiles(selectedFiles);
+                fileInput.value = ''; // Reset input to allow selecting same file again
+            }
+            
+            function handleDragOver(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.add('active');
+            }
+            
+            function handleDragLeave(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.remove('active');
+            }
+            
+            function handleDrop(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.remove('active');
+                
+                const droppedFiles = e.dataTransfer.files;
+                processFiles(droppedFiles);
+            }
+            
+            function processFiles(fileList) {
+                if (fileList.length === 0) return;
+                
+                Array.from(fileList).forEach(file => {
+                    // Only process text files
+                    if (!file.type.match('text.*') && !file.name.match(/\.(txt|text|md|csv|log)$/i)) {
+                        return;
+                    }
+                    
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        const fileContent = e.target.result;
+                        
+                        // Check if file already exists
+                        const existingFileIndex = files.findIndex(f => f.name === file.name);
+                        
+                        if (existingFileIndex !== -1) {
+                            // Update existing file
+                            files[existingFileIndex].content = fileContent;
+                            updateFileItem(files[existingFileIndex]);
+                        } else {
+                            // Add new file
+                            const fileObj = {
+                                id: Date.now() + Math.random().toString(36).substr(2, 9),
+                                name: file.name,
+                                size: file.size,
+                                type: file.type,
+                                lastModified: file.lastModified,
+                                content: fileContent
+                            };
+                            
+                            files.push(fileObj);
+                            addFileItem(fileObj);
+                        }
+                        
+                        if (noFilesMessage) {
+                            noFilesMessage.style.display = 'none';
+                        }
+                    };
+                    
+                    reader.readAsText(file);
+                });
+            }
+            
+            function addFileItem(file) {
+                const fileSize = formatFileSize(file.size);
+                
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item bg-gray-50 rounded p-3 flex justify-between items-center';
+                fileItem.dataset.id = file.id;
+                
+                fileItem.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-file-alt text-blue-500 mr-3"></i>
+                        <div>
+                            <div class="font-medium text-gray-800 truncate max-w-xs">${file.name}</div>
+                            <div class="text-xs text-gray-500">${fileSize}</div>
+                        </div>
+                    </div>
+                    <div class="file-actions opacity-0 transition-opacity flex space-x-2">
+                        <button class="preview-btn p-1 text-blue-500 hover:text-blue-700" title="Preview">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="delete-btn p-1 text-red-500 hover:text-red-700" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                
+                fileList.appendChild(fileItem);
+                
+                // Add event listeners to the new buttons
+                fileItem.querySelector('.preview-btn').addEventListener('click', () => previewFile(file.id));
+                fileItem.querySelector('.delete-btn').addEventListener('click', () => deleteFile(file.id));
+            }
+            
+            function updateFileItem(file) {
+                const fileItem = fileList.querySelector(`[data-id="${file.id}"]`);
+                if (fileItem) {
+                    const fileNameElement = fileItem.querySelector('.font-medium');
+                    fileNameElement.textContent = file.name;
+                    
+                    // Flash the item to show it was updated
+                    fileItem.style.backgroundColor = '#f0f9ff';
+                    setTimeout(() => {
+                        fileItem.style.backgroundColor = '';
+                    }, 500);
+                }
+            }
+            
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            function previewFile(fileId) {
+                const file = files.find(f => f.id === fileId);
+                if (!file) return;
+                
+                currentPreviewFile = file;
+                previewTitle.textContent = file.name;
+                previewContent.textContent = file.content;
+                previewModal.classList.remove('hidden');
+            }
+            
+            function closeModal() {
+                previewModal.classList.add('hidden');
+                currentPreviewFile = null;
+            }
+            
+            function downloadCurrentFile() {
+                if (!currentPreviewFile) return;
+                
+                const blob = new Blob([currentPreviewFile.content], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = currentPreviewFile.name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+            
+            function deleteCurrentFile() {
+                if (!currentPreviewFile) return;
+                
+                if (confirm(`Are you sure you want to delete "${currentPreviewFile.name}"?`)) {
+                    deleteFile(currentPreviewFile.id);
+                    closeModal();
+                }
+            }
+            
+            function deleteFile(fileId) {
+                const fileIndex = files.findIndex(f => f.id === fileId);
+                if (fileIndex === -1) return;
+                
+                const fileName = files[fileIndex].name;
+                
+                if (confirm(`Are you sure you want to delete "${fileName}"?`)) {
+                    files.splice(fileIndex, 1);
+                    
+                    const fileItem = fileList.querySelector(`[data-id="${fileId}"]`);
+                    if (fileItem) {
+                        fileItem.classList.add('opacity-0', 'h-0', 'overflow-hidden');
+                        setTimeout(() => fileItem.remove(), 300);
+                    }
+                    
+                    if (files.length === 0 && noFilesMessage) {
+                        noFilesMessage.style.display = 'block';
+                    }
+                    
+                    // Clear search results if the deleted file was in them
+                    performSearch();
+                }
+            }
+            
+            function performSearch() {
+                const searchTerm = searchInput.value.trim();
+                
+                if (!searchTerm) {
+                    searchResults.innerHTML = `
+                        <div class="text-center py-12 text-gray-400">
+                            <i class="fas fa-search fa-2x mb-3"></i>
+                            <p>Enter a search term to begin</p>
+                        </div>
+                    `;
+                    searchStats.textContent = '0 files searched';
+                    resultCount.textContent = '0 results found';
+                    return;
+                }
+                
+                if (files.length === 0) {
+                    searchResults.innerHTML = `
+                        <div class="text-center py-12 text-gray-400">
+                            <i class="fas fa-file-upload fa-2x mb-3"></i>
+                            <p>Upload some text files first</p>
+                        </div>
+                    `;
+                    searchStats.textContent = '0 files searched';
+                    resultCount.textContent = '0 results found';
+                    return;
+                }
+                
+                let totalResults = 0;
+                let filesWithResults = 0;
+                
+                searchResults.innerHTML = '';
+                
+                files.forEach(file => {
+                    const content = file.content;
+                    const regex = new RegExp(escapeRegExp(searchTerm), 'gi');
+                    const matches = content.match(regex);
+                    
+                    if (matches) {
+                        filesWithResults++;
+                        totalResults += matches.length;
+                        
+                        // Highlight matches in content
+                        const highlightedContent = content.replace(regex, match => 
+                            `<span class="search-highlight">${match}</span>`
+                        );
+                        
+                        // Split into lines and only show lines with matches
+                        const lines = highlightedContent.split('\n');
+                        const matchingLines = lines.filter(line => regex.test(line));
+                        
+                        const resultItem = document.createElement('div');
+                        resultItem.className = 'bg-gray-50 rounded-lg p-4 border border-gray-200';
+                        resultItem.innerHTML = `
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-medium text-blue-600">${file.name}</h3>
+                                <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                                    ${matches.length} ${matches.length === 1 ? 'match' : 'matches'}
+                                </span>
+                            </div>
+                            <div class="text-sm text-gray-600 mb-1">${formatFileSize(file.size)} • ${new Date(file.lastModified).toLocaleString()}</div>
+                            <div class="mt-3 text-sm bg-white p-3 rounded border border-gray-200 max-h-40 overflow-y-auto">
+                                ${matchingLines.slice(0, 5).join('<br>')}
+                                ${matchingLines.length > 5 ? '<br>...' : ''}
+                            </div>
+                            <div class="mt-3 flex justify-end">
+                                <button class="view-full-btn px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300">
+                                    View full file
+                                </button>
+                            </div>
+                        `;
+                        
+                        searchResults.appendChild(resultItem);
+                        
+                        // Add event listener to view full file button
+                        resultItem.querySelector('.view-full-btn').addEventListener('click', () => {
+                            previewFile(file.id);
+                        });
+                    }
+                });
+                
+                if (filesWithResults === 0) {
+                    searchResults.innerHTML = `
+                        <div class="text-center py-12 text-gray-400">
+                            <i class="fas fa-search-minus fa-2x mb-3"></i>
+                            <p>No results found for "${searchTerm}"</p>
+                        </div>
+                    `;
+                }
+                
+                searchStats.textContent = `${files.length} ${files.length === 1 ? 'file' : 'files'} searched`;
+                resultCount.textContent = `${totalResults} ${totalResults === 1 ? 'result' : 'results'} found in ${filesWithResults} ${filesWithResults === 1 ? 'file' : 'files'}`;
+            }
+            
+            function escapeRegExp(string) {
+                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
         });
-
-        const data = await res.json();
-        const reply = data.choices?.[0]?.message?.content || "No response.";
-        responseDiv.innerHTML = reply;
-      } catch (err) {
-        responseDiv.innerHTML = "⚠️ Error getting AI response.";
-        console.error(err);
-      }
-    }
-  </script>
+    </script>
 </body>
 </html>
