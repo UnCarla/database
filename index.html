@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI File Assistant</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #1f1f2e; color: #fff; padding: 20px; }
+    .container { max-width: 700px; margin: auto; background: #2f2f45; padding: 20px; border-radius: 10px; }
+    h1 { text-align: center; color: #9b59b6; }
+    input, textarea, button { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; }
+    input, textarea { background: #444; color: #fff; }
+    button { background: #9b59b6; color: white; cursor: pointer; }
+    .response { background: #333; padding: 15px; border-radius: 5px; margin-top: 20px; white-space: pre-wrap; }
+    .file-list { margin-top: 10px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📚 AI Knowledge Assistant</h1>
+    
+    <input type="file" id="fileInput" multiple>
+    <div class="file-list" id="fileList">No files uploaded yet.</div>
+    
+    <textarea id="questionInput" placeholder="Ask your question..."></textarea>
+    <button onclick="askAI()">Ask AI</button>
+    
+    <div class="response" id="aiResponse">AI response will appear here.</div>
+  </div>
+
+  <script>
+    let knowledgeBase = [];
+
+    document.getElementById('fileInput').addEventListener('change', function (event) {
+      const files = event.target.files;
+      const fileList = document.getElementById('fileList');
+
+      for (let file of files) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          knowledgeBase.push(e.target.result);
+          updateFileList();
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    function updateFileList() {
+      const fileList = document.getElementById('fileList');
+      fileList.innerHTML = `Total files loaded: ${knowledgeBase.length}`;
+    }
+
+    async function askAI() {
+      const question = document.getElementById('questionInput').value;
+      const context = knowledgeBase.join('\n').slice(0, 12000); // для gpt-3.5 можно больше
+
+      const responseDiv = document.getElementById('aiResponse');
+      responseDiv.innerHTML = 'Thinking... 🤔';
+
+      const apiKey = "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"; // вставь свой настоящий OpenAI API-ключ сюда
+
+      try {
+        const res = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: "gpt-3.5-turbo",
+            messages: [
+              { role: "system", content: "You are an AI assistant answering based on uploaded user documents." },
+              { role: "user", content: `Context:\n${context}\n\nQuestion: ${question}` }
+            ],
+            max_tokens: 500,
+            temperature: 0.7
+          })
+        });
+
+        const data = await res.json();
+        const reply = data.choices?.[0]?.message?.content || "No response.";
+        responseDiv.innerHTML = reply;
+      } catch (err) {
+        responseDiv.innerHTML = "⚠️ Error getting AI response.";
+        console.error(err);
+      }
+    }
+  </script>
+</body>
+</html>
